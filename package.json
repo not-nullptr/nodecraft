@@ -1,0 +1,25 @@
+{
+	"name": "mc-server-emulator",
+	"version": "1.0.0",
+	"main": "src/index.ts",
+	"scripts": {
+		"dev": "tsx watch ."
+	},
+	"author": "",
+	"license": "ISC",
+	"description": "",
+	"devDependencies": {
+		"@types/node": "^20.12.12",
+		"@types/uuid": "^9.0.8",
+		"tsx": "^4.11.0",
+		"typescript": "^5.4.5"
+	},
+	"dependencies": {
+		"colorts": "^0.1.63",
+		"long": "^5.2.3",
+		"nbtify": "^1.90.1",
+		"prismarine-nbt": "^2.5.0",
+		"uuid": "^9.0.1",
+		"uuid-by-string": "^4.0.0"
+	}
+}

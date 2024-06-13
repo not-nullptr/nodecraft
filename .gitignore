@@ -1,0 +1,5 @@
+1.20.4.json
+chunk.json
+node_modules
+package-lock.json
+*.bak
