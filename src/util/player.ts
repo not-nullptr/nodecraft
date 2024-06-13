@@ -474,7 +474,7 @@ export class Player extends Entity {
 	public toPacket() {
 		return constructPacket("ClientBound", State.Play, "SpawnEntity", {
 			entityID: this.getEntityId(),
-			entityUUID: `OfflinePlayer:${this.username}`,
+			entityUUID: this.uuid,
 			entityType: EntityType.Player,
 			x: this.getPosition().x,
 			y: this.getPosition().y,

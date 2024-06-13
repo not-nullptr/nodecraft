@@ -537,23 +537,9 @@ export class BufferWriter {
 	}
 
 	public writeUUID(value: string): void {
-		const hex = value.replace(/-/g, "");
-		const buffer = Buffer.alloc(16);
-		function writeHexToBuffer(
-			hexStr: string,
-			buffer: Buffer,
-			offset: number
-		) {
-			for (let i = 0; i < hexStr.length; i += 2) {
-				buffer[offset + i / 2] = parseInt(hexStr.substr(i, 2), 16);
-			}
-		}
-		const msbHex = hex.slice(0, 16);
-		const lsbHex = hex.slice(16);
-		writeHexToBuffer(msbHex, buffer, 0);
-		writeHexToBuffer(lsbHex, buffer, 8);
-		this.data = Buffer.concat([this.data, buffer]);
-		this.offset += 16;
+		const [msb, lsb] = value.split("-").map((part) => BigInt(`0x${part}`));
+		this.writeLong(msb);
+		this.writeLong(lsb);
 	}
 
 	public toBuffer(): Buffer {
