@@ -1,4 +1,5 @@
 import "colorts/lib/string";
+import config from "../../config.json";
 
 export const Prefix = {
 	INFO: "INFO".green,
@@ -11,5 +12,6 @@ export const Prefix = {
 };
 
 export function log(prefix: string, message: string) {
+	if (prefix === "Debug".magenta && !config.debug) return;
 	console.log(`${"[".gray}${prefix}${"]".gray} ${message}`);
 }

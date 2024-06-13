@@ -17,11 +17,24 @@ class FlatGenerator extends Generator {
 	}
 	public generateAt(x: number, z: number): Chunk {
 		const chunk = new Chunk(x, z);
-		const section = new ChunkSection();
-		section.fill(0, 0, 0, 15, 15, 15, Block.Stone);
-		for (let y = 0; y < 24; y++) {
-			chunk.setSection(y, section);
-		}
+		chunk.layers([
+			{
+				block: Block.Bedrock,
+				height: 1,
+			},
+			{
+				block: Block.Stone,
+				height: 4,
+			},
+			{
+				block: Block.Dirt,
+				height: 1,
+			},
+			{
+				block: Block.GrassBlock,
+				height: 1,
+			},
+		]);
 		return chunk;
 	}
 }
@@ -127,13 +140,50 @@ export class Chunk {
 		return section.getBlock(x, y % 16, z);
 	}
 
-	public setBlock(x: number, y: number, z: number, block: Block): void {
-		const section = this.sections[Math.floor(y / 16)];
-		section.setBlock(x, y % 16, z, block);
-	}
-
 	public getKey(): string {
 		return `${this.x},${this.z}`;
+	}
+
+	public setBlock(x: number, y: number, z: number, block: Block): void {
+		y += 64;
+		const section = this.sections[Math.floor(y / 16)];
+		const clone = Object.assign(
+			Object.create(Object.getPrototypeOf(section)),
+			section
+		);
+		clone.setBlock(x, y % 16, z, block);
+		this.sections[Math.floor(y / 16)] = clone;
+	}
+
+	public fill(
+		x1: number,
+		y1: number,
+		z1: number,
+		x2: number,
+		y2: number,
+		z2: number,
+		block: Block
+	) {
+		for (let y = y1; y <= y2; y++) {
+			for (let x = x1; x <= x2; x++) {
+				for (let z = z1; z <= z2; z++) {
+					this.setBlock(x, y, z, block);
+				}
+			}
+		}
+	}
+
+	public layers(
+		layers: {
+			block: Block;
+			height: number;
+		}[]
+	) {
+		let y = 0;
+		for (const layer of layers) {
+			this.fill(0, y, 0, 15, y + (layer.height - 1), 15, layer.block);
+			y += layer.height;
+		}
 	}
 
 	public toPacket(): Buffer {

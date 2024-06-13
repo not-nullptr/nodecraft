@@ -167,7 +167,7 @@ export class Game {
 	}
 }
 
-const defaultPos = { x: 0, y: 0, z: 0 };
+const defaultPos = { x: 0, y: 7, z: 0 };
 
 export class Player extends Entity {
 	public readonly socket: Socket;

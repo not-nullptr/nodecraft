@@ -3,3 +3,4 @@ chunk.json
 node_modules
 package-lock.json
 *.bak
+*.dat

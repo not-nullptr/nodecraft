@@ -406,7 +406,7 @@ export class BufferWriter {
 	public writeShort(value: number): void {
 		// const buffer = Buffer.alloc(2);
 		// buffer.writeInt16BE(value, 0);
-		// this.data = Buffer.concat([this.data, buffer]);
+		// this.data = Buffer.cosncat([this.data, buffer]);
 		// this.offset += 2;
 		this.ensureSpace(2);
 		this.data.writeInt16BE(value, this.offset);
@@ -557,7 +557,7 @@ export class BufferWriter {
 	}
 
 	public toBuffer(): Buffer {
-		return this.data;
+		return this.data.slice(0, this.offset);
 	}
 
 	public getOffset(): number {
@@ -580,7 +580,7 @@ export class PacketWriter extends BufferWriter {
 		const buffer = Buffer.alloc(length.length + this.getOffset());
 		length.forEach((byte, i) => buffer.writeUInt8(byte, i));
 		this.getRawData().copy(buffer, length.length);
-		return buffer;
+		return buffer.slice(0, this.getOffset() + length.length);
 	}
 }
 
