@@ -19,6 +19,7 @@ import {
 } from "./util/enum";
 import { readFileSync, writeFile, writeFileSync } from "fs";
 import config from "../config.json";
+import { Prefix, log } from "./util/log";
 
 function hashStringToNumber(str: string) {
 	// Simple hash function
@@ -577,8 +578,10 @@ const server = createServer((socket) => {
 		const name = Object.keys(packets).find(
 			(key) => packets[key as keyof typeof packets] === packetId
 		);
-		if (config.debug)
-			console.log(`Packet type: ${name || `0x${packetId.toString(16)}`}`);
+		log(
+			Prefix.DEBUG,
+			`Packet type: ${name || `0x${packetId.toString(16)}`}`
+		);
 		// @ts-expect-error
 		if (handlers?.[state]?.[packetId]) {
 			try {
@@ -588,11 +591,11 @@ const server = createServer((socket) => {
 				console.error(e);
 			}
 		} else {
-			if (config.debug)
-				console.log(
-					"Unhandled packet of type",
-					name || `0x${packetId.toString(16)}`
-				);
+			log(
+				Prefix.ERROR,
+				"Unhandled packet of type",
+				name || `0x${packetId.toString(16)}`
+			);
 		}
 	});
 

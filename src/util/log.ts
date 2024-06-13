@@ -11,7 +11,7 @@ export const Prefix = {
 	DEBUG: "Debug".magenta,
 };
 
-export function log(prefix: string, message: string) {
+export function log(prefix: string, ...message: any[]) {
 	if (prefix === "Debug".magenta && !config.debug) return;
-	console.log(`${"[".gray}${prefix}${"]".gray} ${message}`);
+	console.log(`${"[".gray}${prefix}${"]".gray}`, ...message);
 }

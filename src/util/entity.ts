@@ -1,3 +1,4 @@
+import getUuidByString from "uuid-by-string";
 import { PacketType, State } from "..";
 import { EntityType, MetadataType, Pose } from "./enum";
 import {
@@ -103,7 +104,7 @@ export class Entity {
 	public toPacket() {
 		return constructPacket("ClientBound", State.Play, "SpawnEntity", {
 			entityID: this.id,
-			entityUUID: this.uuid,
+			entityUUID: crypto.randomUUID(),
 			entityType: this.type,
 			x: this.position.x,
 			y: this.position.y,

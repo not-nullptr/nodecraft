@@ -471,6 +471,24 @@ export class Player extends Entity {
 		});
 	}
 
+	public toPacket() {
+		return constructPacket("ClientBound", State.Play, "SpawnEntity", {
+			entityID: this.getEntityId(),
+			entityUUID: `OfflinePlayer:${this.username}`,
+			entityType: EntityType.Player,
+			x: this.getPosition().x,
+			y: this.getPosition().y,
+			z: this.getPosition().z,
+			pitch: 0,
+			yaw: 0,
+			velocityX: 0,
+			velocityY: 0,
+			velocityZ: 0,
+			headYaw: 0,
+			data: 0,
+		});
+	}
+
 	public setUUID(uuid: string) {
 		// this.uuid = uuid;
 	}
