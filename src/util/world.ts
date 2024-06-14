@@ -1,10 +1,11 @@
 import Long from "long";
 import { PacketType, State } from "..";
 import { Block } from "./enum";
-import { BufferWriter, PacketWriter } from "./packet";
+import { BufferWriter, PacketWriter, constructPacket } from "./packet";
 import nbt, { long, longArray } from "prismarine-nbt";
 import { writeFileSync } from "fs";
 import { Prefix, log } from "./log";
+import { Game } from "./player";
 
 abstract class Generator {
 	constructor() {}
@@ -213,6 +214,56 @@ export class Chunk {
 export class World {
 	private static chunks: Map<string, Chunk> = new Map();
 	private static generator: Generator = new FlatGenerator();
+
+	public static getBlock(x: number, y: number, z: number): Block {
+		const chunkX = Math.floor(x / 16);
+		const chunkZ = Math.floor(z / 16);
+		const chunk = World.getChunk(chunkX, chunkZ);
+		return chunk.getBlock(x % 16, y, z % 16);
+	}
+
+	public static setBlock(
+		x: number,
+		y: number,
+		z: number,
+		block: Block
+	): void {
+		const oldBlock = World.getBlock(x, y, z);
+		const shouldShowParticles =
+			block === Block.Air && oldBlock !== Block.Air;
+		const chunkX = Math.floor(x / 16);
+		const chunkZ = Math.floor(z / 16);
+		const chunk = World.getChunk(chunkX, chunkZ);
+		chunk.setBlock(x % 16, y, z % 16, block);
+		Game.getPlayers().forEach(async (p) => {
+			await p.onReady;
+			p.socket.write(
+				constructPacket("ClientBound", State.Play, "BlockUpdate", {
+					location: {
+						x,
+						y,
+						z,
+					},
+					blockId: block,
+				})
+			);
+
+			if (shouldShowParticles) {
+				p.socket.write(
+					constructPacket("ClientBound", State.Play, "WorldEvent", {
+						event: 2001,
+						position: {
+							x,
+							y,
+							z,
+						},
+						data: oldBlock,
+						disableRelativeVolume: false,
+					})
+				);
+			}
+		});
+	}
 
 	public static getChunk(x: number, z: number): Chunk {
 		const key = `${x},${z}`;

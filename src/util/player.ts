@@ -20,8 +20,6 @@ import nbt from "prismarine-nbt";
 const formatMemoryUsage = (data: number) =>
 	`${Math.round((data / 1024 / 1024) * 100) / 100} MB`;
 
-type Without<T, K> = Pick<T, Exclude<keyof T, K>>;
-
 export enum PlayerActions {
 	AddPlayer = 0x01,
 	InitializeChat = 0x02,
@@ -202,12 +200,14 @@ export class Slot {
 			writer.writeByte(this.itemCount!);
 			writer.writeBytes(this.nbt, false);
 		}
+		return writer.toBuffer();
 	}
 }
 
 export class Player extends Entity {
 	public readonly socket: Socket;
 	private slots: Slot[] = Array(45).fill(new Slot(false));
+	private held = 36;
 	private username: string = "";
 	private actions: PlayerAction[] = [];
 	private keepAliveId = 0n;
@@ -226,12 +226,22 @@ export class Player extends Entity {
 		Game.addPlayer(this);
 	}
 
+	public setHeldItem(slot: number): Slot {
+		this.held = slot;
+		return this.slots[slot];
+	}
+
+	public getHeldItem() {
+		return this.slots[this.held];
+	}
+
 	public getUsername() {
 		return this.username;
 	}
 
 	public setSlot(index: number, slot: Slot) {
 		this.slots[index] = slot;
+		log(Prefix.DEBUG, `Set slot ${index} to`, slot);
 	}
 
 	public animate(animation: EntityAnimation) {

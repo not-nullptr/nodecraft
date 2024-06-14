@@ -10,13 +10,15 @@ import { StatusBuilder, TextComponent } from "./util/status";
 import { CpuInfo, cpus, totalmem } from "os";
 import { TextBuilder, TextEffect } from "./util/text";
 import { Game, Player, PlayerActions } from "./util/player";
-import { Chunk } from "./util/world";
+import { Chunk, World } from "./util/world";
 import {
 	Block,
 	Difficulty,
 	EntityAnimation,
 	Gamemode,
+	ModifyBlockPlayerAction,
 	PlayerAction,
+	itemToBlock,
 } from "./util/enum";
 import { readFileSync, writeFile, writeFileSync } from "fs";
 import config from "../config.json";
@@ -569,6 +571,18 @@ const server = createServer((socket) => {
 				const item = reader.readSlot();
 				player.setSlot(slot, item);
 			},
+			[PacketType.ServerBound[State.Play].SetHeldItem]: (
+				reader: PacketReader
+			) => {
+				const slotIndex = reader.readShort() + 36;
+				const slot = player.setHeldItem(slotIndex);
+				log(
+					Prefix.DEBUG,
+					"Held item:",
+					slot,
+					`(${slotIndex}, ${slotIndex - 36})`
+				);
+			},
 			[PacketType.ServerBound[State.Play].UseItemOn]: (
 				reader: PacketReader
 			) => {
@@ -595,25 +609,69 @@ const server = createServer((socket) => {
 						position.x++;
 						break;
 				}
+				// if the player is inside the block, don't place it
+				if (
+					Math.floor(player.getPosition().x) === position.x &&
+					Math.floor(player.getPosition().y) === position.y &&
+					Math.floor(player.getPosition().z) === position.z
+				)
+					return;
+				player.animate(EntityAnimation.SwingMainArm);
 				log(Prefix.DEBUG, "Placing block at", position);
-				Game.getPlayers().forEach(async (p) => {
-					await p.onReady;
-					p.socket.write(
-						constructPacket(
-							"ClientBound",
-							State.Play,
-							"BlockUpdate",
-							{
-								location: {
-									x: position.x,
-									y: position.y,
-									z: position.z,
-								},
-								blockId: 1,
-							}
-						)
-					);
-				});
+				const slot = player.getHeldItem();
+				if (!slot.present) return;
+				const block = itemToBlock(slot.itemID!);
+				World.setBlock(position.x, position.y, position.z, block);
+				socket.write(
+					constructPacket(
+						"ClientBound",
+						State.Play,
+						"AcknowledgeBlockChange",
+						{
+							sequenceId: 0,
+						}
+					)
+				);
+			},
+			[PacketType.ServerBound[State.Play].PlayerAction]: (
+				reader: PacketReader
+			) => {
+				const action = reader.readVarInt() as ModifyBlockPlayerAction;
+				const position = reader.readPosition();
+				const face = reader.readVarInt();
+				const sequence = reader.readVarInt();
+
+				// switch (face) {
+				// 	case 0:
+				// 		position.y--;
+				// 		break;
+				// 	case 1:
+				// 		position.y++;
+				// 		break;
+				// 	case 2:
+				// 		position.z--;
+				// 		break;
+				// 	case 3:
+				// 		position.z++;
+				// 		break;
+				// 	case 4:
+				// 		position.x--;
+				// 		break;
+				// 	case 5:
+				// 		position.x++;
+				// 		break;
+				// }
+
+				log(
+					Prefix.DEBUG,
+					"Player action:",
+					ModifyBlockPlayerAction[action].cyan.bold,
+					position,
+					face
+				);
+
+				player.animate(EntityAnimation.SwingMainArm);
+				World.setBlock(position.x, position.y, position.z, Block.Air);
 			},
 		},
 	};

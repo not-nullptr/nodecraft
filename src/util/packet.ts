@@ -357,7 +357,7 @@ export class PacketReader {
 		return value;
 	}
 
-	private readByte(): number {
+	public readByte(): number {
 		return this.data[this.offset++];
 	}
 
@@ -384,7 +384,6 @@ export class PacketReader {
 
 		const itemID = this.readVarInt();
 		const itemCount = this.readByte();
-		const nbt = this.read(this.readShort());
 		return new Slot(true, itemID, itemCount);
 	}
 
@@ -543,7 +542,7 @@ export class BufferWriter {
 		// this.data = Buffer.concat([this.data, buffer]);
 		// this.offset++;
 		this.ensureSpace(1);
-		this.data.writeUInt8(Math.min(value, 255), this.offset++);
+		this.data.writeUInt8(value, this.offset++);
 	}
 
 	public writeSignedByte(value: number): void {
@@ -740,6 +739,31 @@ type PacketDataMap = {
 				location: { x: number; y: number; z: number };
 				blockId: Block;
 			};
+			AcknowledgeBlockChange: {
+				sequenceId: number;
+			};
+			WorldEvent: {
+				event: number;
+				position: { x: number; y: number; z: number };
+				data: number;
+				disableRelativeVolume: boolean;
+			};
+			SetEquipment: {
+				entityID: number;
+				equipment: {
+					arr: {
+						slot: number;
+						item: Slot;
+					}[];
+					fn: (
+						value: {
+							slot: number;
+							item: Slot;
+						},
+						writer: PacketWriter
+					) => void;
+				};
+			};
 		};
 	};
 };
@@ -900,6 +924,19 @@ const PacketTypeMap: {
 			BlockUpdate: {
 				location: "position",
 				blockId: "varint",
+			},
+			AcknowledgeBlockChange: {
+				sequenceId: "varint",
+			},
+			WorldEvent: {
+				event: "int",
+				position: "position",
+				data: "int",
+				disableRelativeVolume: "boolean",
+			},
+			SetEquipment: {
+				entityID: "varint",
+				equipment: "array",
 			},
 		},
 	},
