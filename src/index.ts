@@ -12,6 +12,7 @@ import { TextBuilder, TextEffect } from "./util/text";
 import { Game, Player, PlayerActions } from "./util/player";
 import { Chunk } from "./util/world";
 import {
+	Block,
 	Difficulty,
 	EntityAnimation,
 	Gamemode,
@@ -561,6 +562,59 @@ const server = createServer((socket) => {
 			) => {
 				player.animate(EntityAnimation.SwingMainArm);
 			},
+			[PacketType.ServerBound[State.Play].SetCreativeModeSlot]: (
+				reader: PacketReader
+			) => {
+				const slot = reader.readShort();
+				const item = reader.readSlot();
+				player.setSlot(slot, item);
+			},
+			[PacketType.ServerBound[State.Play].UseItemOn]: (
+				reader: PacketReader
+			) => {
+				const hand = reader.readVarInt();
+				const position = reader.readPosition();
+				const face = reader.readVarInt();
+				switch (face) {
+					case 0:
+						position.y--;
+						break;
+					case 1:
+						position.y++;
+						break;
+					case 2:
+						position.z--;
+						break;
+					case 3:
+						position.z++;
+						break;
+					case 4:
+						position.x--;
+						break;
+					case 5:
+						position.x++;
+						break;
+				}
+				log(Prefix.DEBUG, "Placing block at", position);
+				Game.getPlayers().forEach(async (p) => {
+					await p.onReady;
+					p.socket.write(
+						constructPacket(
+							"ClientBound",
+							State.Play,
+							"BlockUpdate",
+							{
+								location: {
+									x: position.x,
+									y: position.y,
+									z: position.z,
+								},
+								blockId: 1,
+							}
+						)
+					);
+				});
+			},
 		},
 	};
 	socket.on("data", (data) => {
@@ -578,10 +632,11 @@ const server = createServer((socket) => {
 		const name = Object.keys(packets).find(
 			(key) => packets[key as keyof typeof packets] === packetId
 		);
-		log(
-			Prefix.DEBUG,
-			`Packet type: ${name || `0x${packetId.toString(16)}`}`
-		);
+		if (config.debugLevel > 1)
+			log(
+				Prefix.DEBUG,
+				`Packet type: ${name || `0x${packetId.toString(16)}`}`
+			);
 		// @ts-expect-error
 		if (handlers?.[state]?.[packetId]) {
 			try {

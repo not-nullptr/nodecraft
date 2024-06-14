@@ -1,6 +1,8 @@
 import uuid from "uuid";
-import { Difficulty, EntityAnimation, EntityType } from "./enum";
+import { Block, Difficulty, EntityAnimation, EntityType } from "./enum";
 import { TextComponent } from "./status";
+import { Slot } from "./player";
+import { Prefix, log } from "./log";
 
 export enum State {
 	Handshaking,
@@ -272,6 +274,10 @@ export class PacketReader {
 		else this.length = 0;
 	}
 
+	public getRawData(): Buffer {
+		return this.data;
+	}
+
 	public readVarInt(): number {
 		let value = 0;
 		let position = 0;
@@ -301,6 +307,17 @@ export class PacketReader {
 		const value = this.data.readDoubleBE(this.offset);
 		this.offset += 8;
 		return value;
+	}
+
+	public readPosition(): { x: number; y: number; z: number } {
+		const value = this.readLong();
+		let x = Number(value >> BigInt(38));
+		let z = Number((value >> BigInt(12)) & BigInt(0x3ffffff));
+		let y = Number(value & BigInt(0xfff));
+		if (x >= 33554432) x -= 67108864;
+		if (z >= 33554432) z -= 67108864;
+		if (y >= 2048) y -= 4096;
+		return { x, y, z };
 	}
 
 	public readFloat(): number {
@@ -361,6 +378,16 @@ export class PacketReader {
 		return value;
 	}
 
+	public readSlot(): Slot {
+		const present = this.readBoolean();
+		if (!present) return new Slot(false);
+
+		const itemID = this.readVarInt();
+		const itemCount = this.readByte();
+		const nbt = this.read(this.readShort());
+		return new Slot(true, itemID, itemCount);
+	}
+
 	public getRemaining(): Buffer {
 		return this.data.slice(this.offset);
 	}
@@ -414,13 +441,21 @@ export class BufferWriter {
 	}
 
 	public writePosition(x: number, y: number, z: number): void {
-		/*
-		x as a 26-bit integer, followed by z as a 26-bit integer, followed by y as a 12-bit integer (all signed, two's complement). See also the section below.
-		*/
-		const value = BigInt(
-			((x & 0x3ffffff) << 38) | ((z & 0x3ffffff) << 12) | (y & 0xfff)
-		);
-		this.writeLong(value);
+		let value = BigInt(0);
+		value |= BigInt(x & 0x3ffffff) << BigInt(38);
+		value |= BigInt(z & 0x3ffffff) << BigInt(12);
+		value |= BigInt(y & 0xfff);
+		this.writeLong(value, false);
+		// const testBuf = Buffer.alloc(8);
+		// testBuf.writeBigInt64BE(value, 0);
+		// const reader = new PacketReader(testBuf, false);
+		// const { x: x2, y: y2, z: z2 } = reader.readPosition();
+		// if (x !== x2 || y !== y2 || z !== z2) {
+		// 	log(
+		// 		Prefix.ERROR,
+		// 		`Position mismatch (${x}, ${y}, ${z} => ${x2}, ${y2}, ${z2})`
+		// 	);
+		// }
 	}
 
 	public writeVarLong(value: number): void {
@@ -477,13 +512,14 @@ export class BufferWriter {
 		this.writeByte(value ? 1 : 0);
 	}
 
-	public writeLong(value: bigint): void {
+	public writeLong(value: bigint, signed = true): void {
 		// const buffer = Buffer.alloc(8);
 		// buffer.writeBigInt64BE(value, 0);
 		// this.data = Buffer.concat([this.data, buffer]);
 		// this.offset += 8;
 		this.ensureSpace(8);
-		this.data.writeBigInt64BE(value, this.offset);
+		if (signed) this.data.writeBigInt64BE(value, this.offset);
+		else this.data.writeBigUInt64BE(value, this.offset);
 		this.offset += 8;
 	}
 
@@ -700,6 +736,10 @@ type PacketDataMap = {
 				chunkX: number;
 				chunkZ: number;
 			};
+			BlockUpdate: {
+				location: { x: number; y: number; z: number };
+				blockId: Block;
+			};
 		};
 	};
 };
@@ -856,6 +896,10 @@ const PacketTypeMap: {
 			SetCenterChunk: {
 				chunkX: "varint",
 				chunkZ: "varint",
+			},
+			BlockUpdate: {
+				location: "position",
+				blockId: "varint",
 			},
 		},
 	},

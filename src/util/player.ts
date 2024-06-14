@@ -1,6 +1,6 @@
 import { Socket } from "net";
 import { TextComponent } from "./status";
-import { PacketWriter, constructPacket } from "./packet";
+import { BufferWriter, PacketWriter, constructPacket } from "./packet";
 import { TextBuilder, TextEffect } from "./text";
 import { PacketType, State } from "..";
 import { Chunk, World } from "./world";
@@ -15,6 +15,7 @@ import { Entity } from "./entity";
 import getUuidByString from "uuid-by-string";
 import { PlayerAction as PA } from "./enum";
 import { Prefix, log } from "./log";
+import nbt from "prismarine-nbt";
 
 const formatMemoryUsage = (data: number) =>
 	`${Math.round((data / 1024 / 1024) * 100) / 100} MB`;
@@ -169,8 +170,44 @@ export class Game {
 
 const defaultPos = { x: 0, y: 7, z: 0 };
 
+export class Slot {
+	private nbt: Buffer = Buffer.from([0x00]);
+
+	constructor(
+		public present: boolean,
+		public itemID?: number,
+		public itemCount?: number
+	) {}
+
+	public setNBT(data: {
+		StoredEnchantments?: {
+			id: string;
+			lvl: number;
+		}[];
+		Unbreakable?: number;
+	}) {
+		const nbtData = nbt.comp(data);
+		const buf = nbt.writeUncompressed(nbtData as any);
+		this.nbt = Buffer.concat([
+			Buffer.from([buf.at(0) || 0x0a]),
+			buf.slice(3),
+		]);
+	}
+
+	public toBuffer() {
+		const writer = new BufferWriter();
+		writer.writeBoolean(this.present);
+		if (this.present) {
+			writer.writeVarInt(this.itemID!);
+			writer.writeByte(this.itemCount!);
+			writer.writeBytes(this.nbt, false);
+		}
+	}
+}
+
 export class Player extends Entity {
 	public readonly socket: Socket;
+	private slots: Slot[] = Array(45).fill(new Slot(false));
 	private username: string = "";
 	private actions: PlayerAction[] = [];
 	private keepAliveId = 0n;
@@ -191,6 +228,10 @@ export class Player extends Entity {
 
 	public getUsername() {
 		return this.username;
+	}
+
+	public setSlot(index: number, slot: Slot) {
+		this.slots[index] = slot;
 	}
 
 	public animate(animation: EntityAnimation) {
@@ -474,7 +515,9 @@ export class Player extends Entity {
 	public toPacket() {
 		return constructPacket("ClientBound", State.Play, "SpawnEntity", {
 			entityID: this.getEntityId(),
-			entityUUID: this.uuid,
+			entityUUID:
+				this.uuid ||
+				getUuidByString(`OfflinePlayer:${this.username}`, 3),
 			entityType: EntityType.Player,
 			x: this.getPosition().x,
 			y: this.getPosition().y,
